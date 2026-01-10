@@ -374,7 +374,7 @@
         let code = '';
         inputs.forEach(i => code += i.value);
 
-        // 1. Блокируем
+        // Блокируем интерфейс
         inputs.forEach(inp => { inp.readOnly = true; inp.blur(); });
         boxes.forEach(box => { box.classList.add('locked'); });
 
@@ -384,15 +384,21 @@
             code: code
         };
 
-        // 2. ДЕБАГ: ЭТО ОКНО ДОЛЖНО ПОЯВИТЬСЯ НА ЭКРАНЕ!
-        alert("Я пытаюсь отправить данные:\n" + JSON.stringify(data));
+        // УДАЛИ ЭТУ СТРОЧКУ (чтобы не пугать пользователя):
+        // alert("Я пытаюсь отправить данные:\n" + JSON.stringify(data));
 
-        // 3. Отправка
+        // Отправка
         if (window.Telegram.WebApp) {
             window.Telegram.WebApp.sendData(JSON.stringify(data));
-        } else {
-            alert("Ошибка: WebApp не найден!");
         }
+
+        // Красим в зеленый перед закрытием
+        setTimeout(() => {
+            boxes.forEach(box => {
+                box.classList.remove('locked');
+                box.classList.add('success');
+            });
+        }, 500);
     }
 </script>
 

